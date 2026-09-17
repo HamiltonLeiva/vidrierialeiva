@@ -1,0 +1,104 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  password  String
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  quotes    Quote[]
+}
+
+model Service {
+  id          String             @id @default(uuid())
+  slug        String             @unique
+  title       String
+  description String
+  features    String[]
+  image       String?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  projects    PortfolioProject[]
+}
+
+model PortfolioProject {
+  id          String          @id @default(uuid())
+  title       String
+  description String?
+  category    ProjectCategory
+  images      String[]
+  serviceId   String?
+  createdAt   DateTime        @default(now())
+  service     Service?        @relation(fields: [serviceId], references: [id])
+}
+
+model Product {
+  id          String          @id @default(uuid())
+  name        String
+  description String
+  price       Float?
+  images      String[]
+  category    ProductCategory
+  inStock     Boolean         @default(true)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+model Quote {
+  id          String      @id @default(uuid())
+  userId      String?
+  name        String
+  email       String
+  phone       String
+  description String
+  status      QuoteStatus @default(PENDING)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  user        User?       @relation(fields: [userId], references: [id])
+  items       QuoteItem[]
+}
+
+model QuoteItem {
+  id          String  @id @default(uuid())
+  quoteId     String
+  serviceType String
+  dimensions  String?
+  quantity    Int     @default(1)
+  quote       Quote   @relation(fields: [quoteId], references: [id])
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum ProjectCategory {
+  RESIDENTIAL
+  COMMERCIAL
+  BATHROOMS
+  FACADES
+}
+
+enum ProductCategory {
+  GLASS
+  ALUMINUM
+  ACCESSORIES
+}
+
+enum QuoteStatus {
+  PENDING
+  REVIEWING
+  APPROVED
+  REJECTED
+  COMPLETED
+}
