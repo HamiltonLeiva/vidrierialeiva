@@ -86,3 +86,7 @@ export async function destroySession() {
   }
   cookieStore.delete(SESSION_COOKIE);
 }
+
+export async function destroyAllUserSessions(userId: string) {
+  await prisma.session.deleteMany({ where: { userId } });
+}

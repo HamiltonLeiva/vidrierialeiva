@@ -1,5 +1,8 @@
 // Prisma Client configuration
 import { PrismaClient } from '@prisma/client';
+import { validateEnvironment } from "@/lib/env";
+
+validateEnvironment();
 
 const prismaClientSingleton = () => {
   return new PrismaClient()

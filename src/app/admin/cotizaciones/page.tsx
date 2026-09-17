@@ -2,20 +2,50 @@ import prisma from "@/lib/prisma";
 import QuoteManagementTable, { QuoteData } from "@/components/admin/QuoteManagementTable";
 import { Clock, CheckCircle2, AlertCircle, TrendingUp, Layers } from "lucide-react";
 import { logout } from "@/app/actions/auth";
-import { requireRole } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminCotizaciones() {
-  const user = await requireRole(["ADMIN", "SUPER_ADMIN"]);
+export default async function AdminCotizaciones({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string; q?: string; status?: string }>;
+}) {
+  const user = await getCurrentUser();
+  if (!user || (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN")) {
+    redirect("/login");
+  }
+  const params = await searchParams;
+  const page = Math.max(1, Number.parseInt(params.page || "1", 10) || 1);
+  const pageSize = 25;
+  const search = params.q?.trim() || "";
+  const status = ["PENDING", "REVIEWING", "APPROVED", "REJECTED", "COMPLETED"].includes(params.status || "")
+    ? params.status
+    : undefined;
   let quotes: QuoteData[] = [];
   let dbError = false;
+  let totalQuotes = 0;
+  let countsByStatus = new Map<string, number>();
 
   try {
-    const rawQuotes = await prisma.quote.findMany({
-      orderBy: { createdAt: "desc" },
-      include: { items: true },
-    });
+    const where = {
+      ...(status ? { status: status as "PENDING" | "REVIEWING" | "APPROVED" | "REJECTED" | "COMPLETED" } : {}),
+      ...(search ? { OR: [{ name: { contains: search, mode: "insensitive" as const } }, { email: { contains: search, mode: "insensitive" as const } }, { phone: { contains: search } }] } : {}),
+    };
+    const [rawQuotes, count, groupedCounts] = await Promise.all([
+      prisma.quote.findMany({
+        where,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { createdAt: "desc" },
+        include: { items: true },
+      }),
+      prisma.quote.count({ where }),
+      prisma.quote.groupBy({ by: ["status"], _count: { _all: true } }),
+    ]);
+    totalQuotes = count;
+    countsByStatus = new Map(groupedCounts.map((entry) => [entry.status, entry._count._all]));
 
     quotes = rawQuotes.map((q) => ({
       id: q.id,
@@ -37,11 +67,10 @@ export default async function AdminCotizaciones() {
     console.error("Prisma error in AdminCotizaciones:", e);
   }
 
-  const totalQuotes = quotes.length;
-  const pendingQuotes = quotes.filter((q) => q.status === "PENDING").length;
-  const reviewingQuotes = quotes.filter((q) => q.status === "REVIEWING").length;
-  const approvedQuotes = quotes.filter((q) => q.status === "APPROVED").length;
-  const completedQuotes = quotes.filter((q) => q.status === "COMPLETED").length;
+  const pendingQuotes = countsByStatus.get("PENDING") || 0;
+  const reviewingQuotes = countsByStatus.get("REVIEWING") || 0;
+  const approvedQuotes = countsByStatus.get("APPROVED") || 0;
+  const completedQuotes = countsByStatus.get("COMPLETED") || 0;
 
   return (
     <div className="bg-leiva-surface min-h-screen py-12">
@@ -59,6 +88,9 @@ export default async function AdminCotizaciones() {
           </p>
           <div className="flex items-center gap-3 mt-4">
             <span className="text-xs text-gray-500">{user.email}</span>
+            <a href="/admin/seguridad" className="text-xs font-semibold text-leiva-blue hover:underline">
+              Seguridad
+            </a>
             <form action={logout}>
               <button type="submit" className="text-xs font-semibold text-leiva-blue hover:underline">
                 Cerrar sesión
@@ -147,6 +179,13 @@ export default async function AdminCotizaciones() {
           initialQuotes={quotes}
           canDelete={user.role === "SUPER_ADMIN"}
         />
+        {totalQuotes > 25 && (
+          <div className="flex justify-between mt-4 text-sm">
+            {page > 1 ? <a className="text-leiva-blue hover:underline" href={`/admin/cotizaciones?page=${page - 1}`}>Anterior</a> : <span />}
+            <span className="text-gray-500">Página {page} de {Math.ceil(totalQuotes / 25)}</span>
+            {page < Math.ceil(totalQuotes / 25) ? <a className="text-leiva-blue hover:underline" href={`/admin/cotizaciones?page=${page + 1}`}>Siguiente</a> : <span />}
+          </div>
+        )}
       </div>
     </div>
   );

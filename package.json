@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "seed:admins": "node --env-file=.env scripts/create-admin-users.mjs"
+    "seed:admins": "node --env-file=.env scripts/create-admin-users.mjs",
+    "db:migrate:deploy": "prisma migrate deploy"
   },
   "dependencies": {
     "@prisma/client": "^5.20.0",
