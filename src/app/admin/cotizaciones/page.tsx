@@ -1,10 +1,13 @@
 import prisma from "@/lib/prisma";
 import QuoteManagementTable, { QuoteData } from "@/components/admin/QuoteManagementTable";
 import { Clock, CheckCircle2, AlertCircle, TrendingUp, Layers } from "lucide-react";
+import { logout } from "@/app/actions/auth";
+import { requireRole } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminCotizaciones() {
+  const user = await requireRole(["ADMIN", "SUPER_ADMIN"]);
   let quotes: QuoteData[] = [];
   let dbError = false;
 
@@ -54,6 +57,14 @@ export default async function AdminCotizaciones() {
           <p className="text-gray-600 text-sm mt-1">
             Monitorea, actualiza y da seguimiento en tiempo real a las solicitudes de clientes de Vidriería Leiva.
           </p>
+          <div className="flex items-center gap-3 mt-4">
+            <span className="text-xs text-gray-500">{user.email}</span>
+            <form action={logout}>
+              <button type="submit" className="text-xs font-semibold text-leiva-blue hover:underline">
+                Cerrar sesión
+              </button>
+            </form>
+          </div>
         </div>
 
         {/* Alerta de conexión si la DB no está activa */}
@@ -132,7 +143,10 @@ export default async function AdminCotizaciones() {
         </div>
 
         {/* Tabla Interactiva */}
-        <QuoteManagementTable initialQuotes={quotes} />
+        <QuoteManagementTable
+          initialQuotes={quotes}
+          canDelete={user.role === "SUPER_ADMIN"}
+        />
       </div>
     </div>
   );

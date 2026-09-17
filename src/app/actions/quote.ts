@@ -3,13 +3,23 @@
 import prisma from "@/lib/prisma";
 
 export async function submitQuote(formData: FormData) {
-  const name = (formData.get("name") as string) || "";
-  const phone = (formData.get("phone") as string) || "";
-  const email = (formData.get("email") as string) || "";
-  const serviceType = (formData.get("serviceType") as string) || "";
-  const dimensions = (formData.get("dimensions") as string) || "No especificadas";
-  const location = (formData.get("location") as string) || "No especificada";
-  const description = (formData.get("description") as string) || "";
+  const name = String(formData.get("name") || "").trim();
+  const phone = String(formData.get("phone") || "").trim();
+  const email = String(formData.get("email") || "").trim().toLowerCase();
+  const serviceType = String(formData.get("serviceType") || "").trim();
+  const dimensions = String(formData.get("dimensions") || "").trim() || "No especificadas";
+  const location = String(formData.get("location") || "").trim() || "No especificada";
+  const description = String(formData.get("description") || "").trim();
+
+  if (!name || !phone || !serviceType || !description) {
+    return { success: false, error: "Completa los campos obligatorios." };
+  }
+  if (name.length > 120 || phone.length > 40 || email.length > 254 || description.length > 4000) {
+    return { success: false, error: "Uno o más campos exceden el límite permitido." };
+  }
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return { success: false, error: "Ingresa un correo electrónico válido." };
+  }
 
   const fullDescription = `Ubicación: ${location}\nDescripción: ${description}`;
 
@@ -50,13 +60,11 @@ export async function submitQuote(formData: FormData) {
       data: { name, phone, serviceType, dimensions },
     };
   } catch (error) {
-    console.error("Prisma error al guardar cotización (fallback activo):", error);
-    // Modo resiliente: permite al usuario continuar por WhatsApp aunque la BD falle
+    console.error("Prisma error al guardar cotización:", error);
     return {
-      success: true,
+      success: false,
       whatsappUrl,
-      data: { name, phone, serviceType, dimensions },
-      warning: "Guardado en modo contingencia",
+      error: "No pudimos guardar tu solicitud. Intenta nuevamente en unos minutos.",
     };
   }
 }

@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "seed:admins": "node --env-file=.env scripts/create-admin-users.mjs"
   },
   "dependencies": {
     "@prisma/client": "^5.20.0",

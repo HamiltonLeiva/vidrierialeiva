@@ -2,12 +2,18 @@
 
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { requireRole } from "@/lib/auth";
 
 export async function updateQuoteStatus(quoteId: string, status: string) {
   try {
+    await requireRole(["ADMIN", "SUPER_ADMIN"]);
+    const validStatuses = ["PENDING", "REVIEWING", "APPROVED", "REJECTED", "COMPLETED"] as const;
+    if (!validStatuses.includes(status as (typeof validStatuses)[number])) {
+      return { success: false, error: "Estado de cotización inválido." };
+    }
     await prisma.quote.update({
       where: { id: quoteId },
-      data: { status: status as unknown as "PENDING" | "REVIEWING" | "APPROVED" | "COMPLETED" }, 
+      data: { status: status as (typeof validStatuses)[number] },
     });
     revalidatePath("/admin/cotizaciones");
     return { success: true };
@@ -19,13 +25,12 @@ export async function updateQuoteStatus(quoteId: string, status: string) {
 
 export async function deleteQuote(quoteId: string) {
   try {
+    await requireRole(["SUPER_ADMIN"]);
     // Delete items first (cascade not automatic with Prisma)
-    await prisma.quoteItem.deleteMany({
-      where: { quoteId },
-    });
-    await prisma.quote.delete({
-      where: { id: quoteId },
-    });
+    await prisma.$transaction([
+      prisma.quoteItem.deleteMany({ where: { quoteId } }),
+      prisma.quote.delete({ where: { id: quoteId } }),
+    ]);
     revalidatePath("/admin/cotizaciones");
     return { success: true };
   } catch (error) {
@@ -36,6 +41,7 @@ export async function deleteQuote(quoteId: string) {
 
 export async function getQuoteStats() {
   try {
+    await requireRole(["ADMIN", "SUPER_ADMIN"]);
     const [total, pending, reviewing, approved, completed] = await Promise.all([
       prisma.quote.count(),
       prisma.quote.count({ where: { status: "PENDING" } }),

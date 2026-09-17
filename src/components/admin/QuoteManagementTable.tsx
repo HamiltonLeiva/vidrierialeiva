@@ -34,6 +34,10 @@ export interface QuoteData {
 
 type QuoteStatus = QuoteData["status"];
 
+function normalizeNicaraguaPhone(phone: string) {
+  return phone.replace(/[^0-9]/g, "").replace(/^505/, "");
+}
+
 const STATUS_CONFIG: Record<
   string,
   { label: string; bg: string; text: string; border: string }
@@ -72,8 +76,10 @@ const STATUS_CONFIG: Record<
 
 export default function QuoteManagementTable({
   initialQuotes,
+  canDelete,
 }: {
   initialQuotes: QuoteData[];
+  canDelete: boolean;
 }) {
   const [quotes, setQuotes] = useState<QuoteData[]>(initialQuotes);
   const [searchTerm, setSearchTerm] = useState("");
@@ -227,7 +233,7 @@ export default function QuoteManagementTable({
                       year: "numeric",
                     }
                   );
-                  const cleanPhone = quote.phone.replace(/[^0-9]/g, "");
+                  const cleanPhone = normalizeNicaraguaPhone(quote.phone);
 
                   return (
                     <tr
@@ -303,13 +309,15 @@ export default function QuoteManagementTable({
                           >
                             <Eye size={16} />
                           </button>
-                          <button
-                            onClick={() => handleDelete(quote.id)}
-                            title="Eliminar cotización"
-                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                          >
-                            <Trash2 size={16} />
-                          </button>
+                          {canDelete && (
+                            <button
+                              onClick={() => handleDelete(quote.id)}
+                              title="Eliminar cotización"
+                              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -368,9 +376,8 @@ export default function QuoteManagementTable({
                       {selectedQuote.phone}
                     </span>
                     <a
-                      href={`https://wa.me/505${selectedQuote.phone.replace(
-                        /[^0-9]/g,
-                        ""
+                      href={`https://wa.me/505${normalizeNicaraguaPhone(
+                        selectedQuote.phone
                       )}?text=${encodeURIComponent(
                         `Hola ${selectedQuote.name}, te contactamos de Vidriería Leiva respecto a tu solicitud de cotización.`
                       )}`}
